@@ -32,6 +32,9 @@ let segment = global.segment || {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ========== 角色名配置 ==========
+const BOT_NAME = "菲比";  // 修改这里即可替换所有提示文案中的角色名
+
 // ========== 核心配置 ==========
 const API_URL = 'https://api地址/chat/completions';  //举例：https://api.fzmandy.fun/v1/images/generations
 const API_KEY = "";//Apikey填这里
@@ -87,7 +90,9 @@ export class Painting extends plugin {
         { reg: "^#?(查询额度|查余额|查询api|查api)$", fnc: "queryApi" },
         // 存图开关
         { reg: "^#开启bnn存图$", fnc: "enableSaveImg" },
-        { reg: "^#关闭bnn存图$", fnc: "disableSaveImg" }
+        { reg: "^#关闭bnn存图$", fnc: "disableSaveImg" },
+        // 周排行
+        { reg: "^#排行bnn$", fnc: "weeklyRanking" }
       ]
     });
     
@@ -159,7 +164,7 @@ export class Painting extends plugin {
   }
 
   async updateResourcesHandler(e) {
-    if (!e.isMaster) return e.reply(`哼唧，只有主人才能更新菲比的魔法书哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，只有主人才能更新${BOT_NAME}的魔法书哦~ 🙅‍♀️`);
     
     await e.reply("正在从云端拉取最新魔法预设，请稍等...", true);
     const jsonSuccess = await this.fetchAndSaveJson();
@@ -267,7 +272,7 @@ export class Painting extends plugin {
 
   // === 次数管理命令 ===
   async addUsageCount(e) {
-    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，菲比不能听你的哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，${BOT_NAME}不能听你的哦~ 🙅‍♀️`);
 
     const rawMsg = e.msg.replace(/^#绘图增加次数/, '').trim();
     const parts = rawMsg.split(/\s+/);
@@ -303,11 +308,11 @@ export class Painting extends plugin {
     const current = await this.getUsageCount(targetId);
     await this.setUsageCount(targetId, current + count);
     
-    await e.reply(`好耶！菲比已经为 ${typeStr} 增加了 ${count} 次魔法✨\n🎁 当前剩余：${current + count} 次哟~ 💖`);
+    await e.reply(`好耶！${BOT_NAME}已经为 ${typeStr} 增加了 ${count} 次魔法✨\n🎁 当前剩余：${current + count} 次哟~ 💖`);
   }
 
   async queryUsageCount(e) {
-    await e.reply(`菲比正在翻看账本，请稍等哦… 📖`);
+    await e.reply(`${BOT_NAME}正在翻看账本，请稍等哦… 📖`);
     
     const todayGenerated = await this.getTodayGeneratedCount();
     const historyTotal = await this.getHistoryTotalCount();
@@ -333,7 +338,7 @@ export class Painting extends plugin {
         if (e.isGroup) {
             const groupCount = await this.getUsageCount(String(e.group_id));
             const userCount = await this.getUsageCount(`user_${e.user_id}`);
-            await e.reply(`本群的剩余魔法次数：${groupCount} 次 ✨\n你个人的专属魔法次数：${userCount} 次 🎁\n\n📊 菲比今日全服作画：${todayGenerated}张\n🏆 菲比历史总共作画：${historyTotal}张`);
+            await e.reply(`本群的剩余魔法次数：${groupCount} 次 ✨\n你个人的专属魔法次数：${userCount} 次 🎁\n\n📊 ${BOT_NAME}今日全服作画：${todayGenerated}张\n🏆 ${BOT_NAME}历史总共作画：${historyTotal}张`);
             return;
         } else {
             targetId = `user_${e.user_id}`;
@@ -342,19 +347,19 @@ export class Painting extends plugin {
     }
     
     const count = await this.getUsageCount(targetId);
-    await e.reply(`${typeStr} 的剩余魔法次数：${count} 次 ✨\n\n📊 菲比今日全服作画：${todayGenerated}张\n🏆 菲比历史总共作画：${historyTotal}张`);
+    await e.reply(`${typeStr} 的剩余魔法次数：${count} 次 ✨\n\n📊 ${BOT_NAME}今日全服作画：${todayGenerated}张\n🏆 ${BOT_NAME}历史总共作画：${historyTotal}张`);
   }
 
   async queryAllCounts(e) {
-    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，菲比不能听你的哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，${BOT_NAME}不能听你的哦~ 🙅‍♀️`);
     
     const cfg = this.getUsageCountConfig();
     const list = Object.entries(cfg.users).filter(([_, count]) => count > 0).sort((a, b) => b[1] - a[1]);
     
-    if (list.length === 0) return e.reply(`报告主人！菲比的账本上还没有任何次数记录哦~ 📝`);
+    if (list.length === 0) return e.reply(`报告主人！${BOT_NAME}的账本上还没有任何次数记录哦~ 📝`);
     
     const total = list.reduce((acc, cur) => acc + cur[1], 0);
-    let info = [`📊 菲比的魔法账本：`, `总计分配: ${total} 次`, '----------------'];
+    let info = [`📊 ${BOT_NAME}的魔法账本：`, `总计分配: ${total} 次`, '----------------'];
     
     list.slice(0, 50).forEach((item, i) => {
         const typeLabel = item[0].startsWith('user_') ? `用户 ${item[0].substring(5)}` : `群 ${item[0]}`;
@@ -363,12 +368,12 @@ export class Painting extends plugin {
     
     if (list.length > 50) info.push(`...以及其他 ${list.length - 50} 个目标`);
     
-    const forwardMsg = await this.makeForwardMsg(e, info, `菲比的魔法账本`);
+    const forwardMsg = await this.makeForwardMsg(e, info, `${BOT_NAME}的魔法账本`);
     await e.reply(forwardMsg || info.join('\n'));
   }
 
   async deleteUsageCount(e) {
-    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，菲比不能听你的哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，${BOT_NAME}不能听你的哦~ 🙅‍♀️`);
     let targetId = null, typeStr = "";
 
     if (e.at) {
@@ -388,25 +393,25 @@ export class Painting extends plugin {
     
     if (!targetId) {
         if (e.isGroup) { targetId = String(e.group_id); typeStr = "本群"; } 
-        else { return e.reply(`菲比不知道你要清零谁，请指定一下哦：#绘图删除次数 <群号/uQQ号/@某人> 🧹`); }
+        else { return e.reply(`${BOT_NAME}不知道你要清零谁，请指定一下哦：#绘图删除次数 <群号/uQQ号/@某人> 🧹`); }
     }
     
     const cfg = this.getUsageCountConfig();
     if (cfg.users[targetId]) {
         delete cfg.users[targetId];
         this.saveUsageCountConfig(cfg);
-        await e.reply(`呼~ 菲比已经把 ${typeStr} 的魔法次数清空啦！🧹`);
+        await e.reply(`呼~ ${BOT_NAME}已经把 ${typeStr} 的魔法次数清空啦！🧹`);
     } else {
-        await e.reply(`咦？${typeStr} 还没有菲比的次数记录呢 🐾`);
+        await e.reply(`咦？${typeStr} 还没有${BOT_NAME}的次数记录呢 🐾`);
     }
   }
 
   async deleteAllCounts(e) {
-    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，菲比不能听你的哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，这个是主人的专属魔法，${BOT_NAME}不能听你的哦~ 🙅‍♀️`);
     const cfg = this.getUsageCountConfig();
     cfg.users = {};
     this.saveUsageCountConfig(cfg);
-    await e.reply(`好啦！菲比已经把全服所有的次数记录都打扫干净啦！✨`);
+    await e.reply(`好啦！${BOT_NAME}已经把全服所有的次数记录都打扫干净啦！✨`);
   }
 
   async takeSourceMsg(e, { img, file } = {}) {
@@ -505,7 +510,7 @@ export class Painting extends plugin {
 
       if (groupCount < 1 && userCount < 1) {
         if (!groupId) await e.reply("呜呜，这个魔法需要消耗次数哦，你的专属次数不足啦，快去请主人充值吧~ 🎀");
-        else await e.reply(`哎呀，本群和你的专属魔法次数都已经用完啦，快去请主人给菲比充值吧~ ✨`);
+        else await e.reply(`哎呀，本群和你的专属魔法次数都已经用完啦，快去请主人给${BOT_NAME}充值吧~ ✨`);
         return;
       }
     }
@@ -520,7 +525,7 @@ export class Painting extends plugin {
     const prompt = preset.prompt;
     const presetName = preset.keywords[0];
 
-    await e.reply(`🪄 菲比收到 [${presetName}] 指令啦，正在为你施展魔法，请稍等哦… 🎨`);
+    await e.reply(`🪄 ${BOT_NAME}收到 [${presetName}] 指令啦，正在为你施展魔法，请稍等哦… 🎨`);
     
     const imageUrlList = await this.getImageUrls(e, true);
     if (preset.needImage && imageUrlList.length === 0) {
@@ -545,7 +550,7 @@ export class Painting extends plugin {
         if (base64Data) {
           finalImageUrl = `data:image/jpeg;base64,${base64Data}`;
         } else {
-          await e.reply("呜呜，菲比获取你发的图片失败了（可能图片已过期），请重新发送图片试试哦~ 🥺");
+          await e.reply("呜呜，${BOT_NAME}获取你发的图片失败了（可能图片已过期），请重新发送图片试试哦~ 🥺");
           return;
         }
     } else {
@@ -579,8 +584,8 @@ export class Painting extends plugin {
       const userCount = await this.getUsageCount(userId);
 
       if (groupCount < 1 && userCount < 1) {
-        if (!groupId) await e.reply(`呜呜，菲比的这个魔法需要消耗次数哦，你的专属次数不足，快去请主人充值吧~ 🎀`);
-        else await e.reply(`哎呀，本群和你的专属魔法次数都已经用完啦，快去请主人给菲比充值吧~ ✨`);
+        if (!groupId) await e.reply(`呜呜，${BOT_NAME}的这个魔法需要消耗次数哦，你的专属次数不足，快去请主人充值吧~ 🎀`);
+        else await e.reply(`哎呀，本群和你的专属魔法次数都已经用完啦，快去请主人给${BOT_NAME}充值吧~ ✨`);
         return;
       }
     }
@@ -598,7 +603,7 @@ export class Painting extends plugin {
     let genCount = match[1] ? parseInt(match[1]) : 1;
     if (isNaN(genCount) || genCount < 1) genCount = 1;
     if (genCount > BNN_MAX_COUNT) {
-      await e.reply(`最多一次生成 ${BNN_MAX_COUNT} 张哦，菲比帮你调整到 ${BNN_MAX_COUNT} 张啦~ 🎨`);
+      await e.reply(`最多一次生成 ${BNN_MAX_COUNT} 张哦，${BOT_NAME}帮你调整到 ${BNN_MAX_COUNT} 张啦~ 🎨`);
       genCount = BNN_MAX_COUNT;
     }
     const prompt = match[2].trim();
@@ -611,7 +616,7 @@ export class Painting extends plugin {
       const userCount = await this.getUsageCount(userId);
       const totalAvailable = groupCount + userCount;
       if (totalAvailable < genCount) {
-        await e.reply(`你的剩余次数(${totalAvailable})不够生成 ${genCount} 张哦，菲比帮你调整到 ${totalAvailable} 张~ 🎁`);
+        await e.reply(`你的剩余次数(${totalAvailable})不够生成 ${genCount} 张哦，${BOT_NAME}帮你调整到 ${totalAvailable} 张~ 🎁`);
         genCount = totalAvailable;
         if (genCount < 1) return;
       }
@@ -622,16 +627,16 @@ export class Painting extends plugin {
     let replyMessage = '';
 
     if (originalCount === 0) replyMessage = genCount > 1 
-      ? `收到！菲比正在生成 ${genCount} 张图，请耐心等待哦… 💭✨`
-      : `收到！菲比正在根据提示词闭眼想象，马上画出来哦… 💭✨`;
+      ? `收到！${BOT_NAME}正在生成 ${genCount} 张图，请耐心等待哦… 💭✨`
+      : `收到！${BOT_NAME}正在根据提示词闭眼想象，马上画出来哦… 💭✨`;
     else if (originalCount > MAX_IMAGES) {
       imageUrlList.splice(MAX_IMAGES);
       replyMessage = genCount > 1
-        ? `哇！图片太多啦，菲比挑了前 ${MAX_IMAGES} 张，正在生成 ${genCount} 张图… 🪄`
-        : `哇！图片太多啦，菲比挑了前 ${MAX_IMAGES} 张，结合提示词开始施展魔法啦… 🪄`;
+        ? `哇！图片太多啦，${BOT_NAME}挑了前 ${MAX_IMAGES} 张，正在生成 ${genCount} 张图… 🪄`
+        : `哇！图片太多啦，${BOT_NAME}挑了前 ${MAX_IMAGES} 张，结合提示词开始施展魔法啦… 🪄`;
     } else replyMessage = genCount > 1
-      ? `收到 ${originalCount} 张图片！菲比正在生成 ${genCount} 张图，请稍等… 🎨`
-      : `收到 ${originalCount} 张图片！菲比正在结合提示词努力作画中… 🎨`;
+      ? `收到 ${originalCount} 张图片！${BOT_NAME}正在生成 ${genCount} 张图，请稍等… 🎨`
+      : `收到 ${originalCount} 张图片！${BOT_NAME}正在结合提示词努力作画中… 🎨`;
 
     await e.reply(replyMessage);
     
@@ -665,11 +670,11 @@ export class Painting extends plugin {
     }
     // 如果所有图片都失败了，提示用户
     if (failedImages > 0 && contentPayload.length <= 1) {
-      await e.reply("呜呜，菲比获取你发的图片失败了（可能图片已过期），请重新发送图片试试哦~ 🥺");
+      await e.reply("呜呜，${BOT_NAME}获取你发的图片失败了（可能图片已过期），请重新发送图片试试哦~ 🥺");
       return;
     }
     if (failedImages > 0) {
-      await e.reply(`⚠️ 有 ${failedImages} 张图片获取失败，菲比用剩余的图片继续画哦~`);
+      await e.reply(`⚠️ 有 ${failedImages} 张图片获取失败，${BOT_NAME}用剩余的图片继续画哦~`);
     }
 
     const payload = {
@@ -853,7 +858,7 @@ export class Painting extends plugin {
         }
         forwardMsgList.push(`✨ 铛铛铛！${successCount}/${genCount} 张画好啦，总耗时 ${elapsed}s${countInfo}`);
 
-        const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `菲比的 ${successCount} 张画作`);
+        const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `${BOT_NAME}的 ${successCount} 张画作`);
         if (forwardMsg) {
           await e.reply(forwardMsg);
         } else {
@@ -981,7 +986,7 @@ export class Painting extends plugin {
 
           let forwardMsgList = [...results];
           forwardMsgList.push(`✨ 铛铛铛！${successCount}/${genCount} 张画好啦，总耗时 ${elapsed}s ｜类型：图生图${countInfo}`);
-          const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `菲比的 ${successCount} 张画作`);
+          const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `${BOT_NAME}的 ${successCount} 张画作`);
           if (forwardMsg) { await e.reply(forwardMsg); }
           else { for (const item of results) { await e.reply(item); } await e.reply(`✨ ${successCount}/${genCount} 张画好啦，总耗时 ${elapsed}s ｜类型：图生图${countInfo}`); }
         } else {
@@ -1024,6 +1029,69 @@ export class Painting extends plugin {
     return true;
   }
 
+  async weeklyRanking(e) {
+    const stats = this.loadDailyStatsConfig();
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7; // 周日=7
+    const mondayDate = new Date(now);
+    mondayDate.setDate(now.getDate() - dayOfWeek + 1);
+    mondayDate.setHours(0, 0, 0, 0);
+
+    const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    let weekData = [];
+    let totalWeek = 0;
+    let maxDay = { count: 0, label: '' };
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mondayDate);
+      d.setDate(mondayDate.getDate() + i);
+      if (d > now) break; // 还没到的日子不显示
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const dayCount = (stats.daily && stats.daily[dateKey]) || 0;
+      weekData.push({ dateKey, dayLabel: weekDays[i], count: dayCount });
+      totalWeek += dayCount;
+      if (dayCount > maxDay.count) {
+        maxDay = { count: dayCount, label: `${weekDays[i]} (${dateKey})` };
+      }
+    }
+
+    if (weekData.length === 0 || totalWeek === 0) {
+      await e.reply(`📊 本周还没有任何作画记录哦~ 快来让${BOT_NAME}施展魔法吧！✨`);
+      return true;
+    }
+
+    // 柱状图
+    const maxCount = maxDay.count || 1;
+    const barMaxLen = 12;
+
+    let forwardMsgList = [];
+    forwardMsgList.push(`📊 ${BOT_NAME}本周作画排行榜`);
+
+    let chartLines = [];
+    for (const day of weekData) {
+      const barLen = Math.round((day.count / maxCount) * barMaxLen);
+      const bar = '█'.repeat(barLen) + '░'.repeat(barMaxLen - barLen);
+      const isToday = day.dateKey === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const suffix = day.count === maxDay.count && day.count > 0 ? ' 👑' : (isToday ? ' 🔵' : '');
+      chartLines.push(`📅 ${day.dateKey} (${day.dayLabel})：${bar} ${day.count}张${suffix}`);
+    }
+    forwardMsgList.push(chartLines.join('\n'));
+
+    const avg = (totalWeek / weekData.length).toFixed(1);
+    forwardMsgList.push(`━━━━━━━━
+🏆 本周总计：${totalWeek} 张
+📈 日均：${avg} 张
+🔥 最高日：${maxDay.label} ${maxDay.count} 张`);
+
+    const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `${BOT_NAME}本周作画排行榜`);
+    if (forwardMsg) {
+      await e.reply(forwardMsg);
+    } else {
+      await e.reply(forwardMsgList.join('\n\n'));
+    }
+    return true;
+  }
+
   async saveGeneratedImage(imgData, e, index = 0) {
     if (!this.saveImgEnabled) return;
     try {
@@ -1053,7 +1121,7 @@ export class Painting extends plugin {
 
   async showHelp(e) {
     let forwardMsgList = []; 
-    forwardMsgList.push(`🎨 菲比Painting魔法使用帮助：`);
+    forwardMsgList.push(`🎨 ${BOT_NAME}Painting魔法使用帮助：`);
     if (this.presetGroup && this.presetGroup.length > 0) {
       const lines = this.presetGroup.map((p, index) => {
         const keys = p.keywords.join(" / ");
@@ -1064,11 +1132,11 @@ export class Painting extends plugin {
       forwardMsgList.push(`📌 基础咒语：\n暂无本地预设，请发送 #更新焚决 获取。`);
     }
     forwardMsgList.push(`📌 创作咒语：
-#bnn <提示词> [图片] - 菲比看图作画
-#bnn <提示词> - 菲比闭眼想象作画 (纯文生图)
+#bnn <提示词> [图片] - ${BOT_NAME}看图作画
+#bnn <提示词> - ${BOT_NAME}闭眼想象作画 (纯文生图)
 
 📌 次数与魔法机制：
-消耗【群次数】。如果群次数不足，菲比会自动检查【你的个人专属次数】哦！`);
+消耗【群次数】。如果群次数不足，${BOT_NAME}会自动检查【你的个人专属次数】哦！`);
     forwardMsgList.push(`📌 主人专属指令：
 #绘图更新预设 (或 #更新焚决) - 从云端拉取最新的画图咒语
 #绘图增加次数 <数量> [@某人/uQQ号/群号] - 给群或个人充能
@@ -1079,12 +1147,13 @@ export class Painting extends plugin {
 #关闭bnn存图 - 关闭本地存图（默认关闭）
 
 📌 大家都可以用的：
-#绘图查询次数 - 看看群里和个人的魔法余量`);
-    const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `菲比的魔法使用帮助`);
+#绘图查询次数 - 看看群里和个人的魔法余量
+#排行bnn - 查看本周每日作画统计排行`);
+    const forwardMsg = await this.makeForwardMsg(e, forwardMsgList, `${BOT_NAME}的魔法使用帮助`);
     if (forwardMsg) {
         await e.reply(forwardMsg);
     } else {
-        await e.reply(`哎呀，菲比制作魔法帮助手册(合并转发)失败啦，请检查Bot是否有发送合并转发的权限哦~ 🥺`);
+        await e.reply(`哎呀，${BOT_NAME}制作魔法帮助手册(合并转发)失败啦，请检查Bot是否有发送合并转发的权限哦~ 🥺`);
     }
 
     return true;
@@ -1411,7 +1480,7 @@ export class Painting extends plugin {
   }
 
   async queryApi(e) {
-    if (!e.isMaster) return e.reply(`哼唧，这是主人的专属面板，菲比不能随便给你看哦~ 🙅‍♀️`);
+    if (!e.isMaster) return e.reply(`哼唧，这是主人的专属面板，${BOT_NAME}不能随便给你看哦~ 🙅‍♀️`);
 
     let apiKey = API_KEY;
     if (!apiKey) {
