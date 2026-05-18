@@ -57,6 +57,8 @@ const DATA_DIR = path.resolve(__dirname, '../data');
 const PRESET_FILE = path.join(DATA_DIR, 'ht.json'); 
 const USER_COUNT_FILE = path.join(DATA_DIR, 'user_counts.json');
 const DAILY_STATS_FILE = path.join(DATA_DIR, 'daily_stats.json');
+const SAVE_CONFIG_FILE = path.join(DATA_DIR, 'save_config.json');
+const SAVE_IMG_DIR = path.join(DATA_DIR, 'generated_images');
 const REMOTE_JSON_URL = "https://ht.pippi.top/pippi.json"; 
 const INITIAL_USER_COUNT = 10;
 const PROXY_URL = "http://192.168.100.2:7890";
@@ -82,12 +84,17 @@ export class Painting extends plugin {
         { reg: "^#绘图查询次数(?:\\s+(.+))?$", fnc: "queryUsageCount" },
         { reg: "^#绘图删除次数(?:\\s+(.+))?$", fnc: "deleteUsageCount" },
         // 新增查询额度规则
-        { reg: "^#?(查询额度|查余额|查询api|查api)$", fnc: "queryApi" }
+        { reg: "^#?(查询额度|查余额|查询api|查api)$", fnc: "queryApi" },
+        // 存图开关
+        { reg: "^#开启bnn存图$", fnc: "enableSaveImg" },
+        { reg: "^#关闭bnn存图$", fnc: "disableSaveImg" }
       ]
     });
     
     this.presetGroup = [];
+    this.saveImgEnabled = false;
     this.ensureDir(DATA_DIR);
+    this.loadSaveImgConfig();
     this.initResources();
   }
 
@@ -694,6 +701,9 @@ export class Painting extends plugin {
         const imgData = data.data && data.data[0];
         if (!imgData) { await e.reply('生成失败: 响应中未找到图片数据'); return; }
         
+        // 存图功能
+        await this.saveGeneratedImage(imgData, e, 0);
+
         let imgSegment;
         if (imgData.b64_json) {
           imgSegment = segment.image(`base64://${imgData.b64_json}`);
@@ -768,6 +778,9 @@ export class Painting extends plugin {
             // gpt-image-2 returns data[].b64_json or data[].url
             const imgData = data.data && data.data[0];
             if (imgData) {
+              // 存图功能
+              await this.saveGeneratedImage(imgData, e, i);
+
               let imgSegment;
               if (imgData.b64_json) {
                 imgSegment = segment.image(`base64://${imgData.b64_json}`);
@@ -978,6 +991,66 @@ export class Painting extends plugin {
     }
   }
 
+  // ================= 存图功能 =================
+  loadSaveImgConfig() {
+    try {
+      if (fs.existsSync(SAVE_CONFIG_FILE)) {
+        const data = JSON.parse(fs.readFileSync(SAVE_CONFIG_FILE, 'utf8'));
+        this.saveImgEnabled = !!data.enabled;
+      }
+    } catch (err) {
+      console.error(`[Painting] 读取存图配置失败: ${err.message}`);
+    }
+  }
+
+  saveSaveImgConfig() {
+    fs.writeFileSync(SAVE_CONFIG_FILE, JSON.stringify({ enabled: this.saveImgEnabled }, null, 2));
+  }
+
+  async enableSaveImg(e) {
+    if (!e.isMaster) return e.reply('哼唧，只有主人才能开启存图哦~ 🙅‍♀️');
+    this.saveImgEnabled = true;
+    this.saveSaveImgConfig();
+    this.ensureDir(SAVE_IMG_DIR);
+    await e.reply('✅ 已开启bnn存图！生成的图片会保存到本地 data/generated_images/ 目录 📁');
+    return true;
+  }
+
+  async disableSaveImg(e) {
+    if (!e.isMaster) return e.reply('哼唧，只有主人才能关闭存图哦~ 🙅‍♀️');
+    this.saveImgEnabled = false;
+    this.saveSaveImgConfig();
+    await e.reply('✅ 已关闭bnn存图！后续生成的图片不再保存到本地 🚫');
+    return true;
+  }
+
+  async saveGeneratedImage(imgData, e, index = 0) {
+    if (!this.saveImgEnabled) return;
+    try {
+      this.ensureDir(SAVE_IMG_DIR);
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      const timeStr = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+      const userId = e.user_id || 'unknown';
+      const filename = `${dateStr}_${timeStr}_${userId}_${index}.png`;
+      const filepath = path.join(SAVE_IMG_DIR, filename);
+
+      let buffer;
+      if (imgData.b64_json) {
+        buffer = Buffer.from(imgData.b64_json, 'base64');
+      } else if (imgData.url) {
+        const base64Data = await this.urlToBase64(imgData.url);
+        buffer = Buffer.from(base64Data, 'base64');
+      }
+      if (buffer) {
+        fs.writeFileSync(filepath, buffer);
+        console.log(`[Painting] 💾 图片已保存: ${filename}`);
+      }
+    } catch (err) {
+      console.error(`[Painting] 存图失败: ${err.message}`);
+    }
+  }
+
   async showHelp(e) {
     let forwardMsgList = []; 
     forwardMsgList.push(`🎨 菲比Painting魔法使用帮助：`);
@@ -1002,6 +1075,8 @@ export class Painting extends plugin {
 #绘图查询/删除所有次数 - 管理全服魔法账本
 #绘图删除次数 [@某人/uQQ号/群号] - 清空某个记录
 #查询额度 (或 #查余额) - 查询 API 中转站余额状态
+#开启bnn存图 - 开启本地存图（图片保存到 data/generated_images/）
+#关闭bnn存图 - 关闭本地存图（默认关闭）
 
 📌 大家都可以用的：
 #绘图查询次数 - 看看群里和个人的魔法余量`);
