@@ -62,7 +62,9 @@ const USER_COUNT_FILE = path.join(DATA_DIR, 'user_counts.json');
 const DAILY_STATS_FILE = path.join(DATA_DIR, 'daily_stats.json');
 const SAVE_CONFIG_FILE = path.join(DATA_DIR, 'save_config.json');
 const SAVE_IMG_DIR = path.join(DATA_DIR, 'generated_images');
-const REMOTE_JSON_URL = "https://ht.pippi.top/pippi.json"; 
+// 焚决预设源：优先 GitHub（自维护），fallback 到原始云端
+const GITHUB_PRESET_URL = "https://raw.githubusercontent.com/MeowAndy/yunzai_panting_js/main/presets/ht.json";
+const REMOTE_JSON_URL = "https://ht.pippi.top/pippi.json"; // fallback
 const INITIAL_USER_COUNT = 10;
 const PROXY_URL = "http://192.168.100.2:7890";
 let USE_PROXY = false;
@@ -130,21 +132,42 @@ export class Painting extends plugin {
   }
 
   async fetchAndSaveJson() {
-    try {
-      const res = await fetch(REMOTE_JSON_URL, { timeout: 15000 });
-      if (!res.ok) throw new Error(`请求失败，状态码: ${res.status}`);
-      const data = await res.json();
-      
-      if (!Array.isArray(data)) throw new Error("远程数据格式错误，不是一个数组");
-      
-      fs.writeFileSync(PRESET_FILE, JSON.stringify(data, null, 2), "utf-8");
-      this.loadPresetsFromFile();
-      console.log(`[Painting] ✅ 预设更新成功，已加载 ${this.presetGroup.length} 条指令。`);
-      return true;
-    } catch (err) {
-      console.error(`[Painting] ❎ 下载预设 JSON 失败: ${err.message}`);
-      return false;
+    const sources = [
+      { name: "GitHub", url: GITHUB_PRESET_URL },
+      { name: "云端(pippi)", url: REMOTE_JSON_URL },
+    ];
+    for (const source of sources) {
+      try {
+        console.log(`[Painting] 正在从 ${source.name} 拉取焚决预设...`);
+        const res = await fetch(source.url, { timeout: 20000 });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error("数据格式错误或为空");
+        fs.writeFileSync(PRESET_FILE, JSON.stringify(data, null, 2), "utf-8");
+        this.loadPresetsFromFile();
+        console.log(`[Painting] ✅ 从 ${source.name} 更新成功，已加载 ${this.presetGroup.length} 条焚决预设。`);
+        return true;
+      } catch (err) {
+        console.warn(`[Painting] ⚠️ 从 ${source.name} 拉取失败: ${err.message}，尝试下一个源...`);
+      }
     }
+    // 所有远程源都失败，尝试使用仓库内置的 presets/ht.json
+    const builtinPreset = path.join(__dirname, 'presets', 'ht.json');
+    if (fs.existsSync(builtinPreset)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(builtinPreset, 'utf-8'));
+        if (Array.isArray(data) && data.length > 0) {
+          fs.writeFileSync(PRESET_FILE, JSON.stringify(data, null, 2), "utf-8");
+          this.loadPresetsFromFile();
+          console.log(`[Painting] ✅ 远程源均不可用，已从内置预设加载 ${this.presetGroup.length} 条焚决。`);
+          return true;
+        }
+      } catch (err) {
+        console.error(`[Painting] ❎ 读取内置预设也失败: ${err.message}`);
+      }
+    }
+    console.error("[Painting] ❎ 所有焚决预设源均不可用！");
+    return false;
   }
 
   updateReg() {
@@ -166,11 +189,11 @@ export class Painting extends plugin {
   async updateResourcesHandler(e) {
     if (!e.isMaster) return e.reply(`哼唧，只有主人才能更新${BOT_NAME}的魔法书哦~ 🙅‍♀️`);
     
-    await e.reply("正在从云端拉取最新魔法预设，请稍等...", true);
+    await e.reply("正在拉取最新焚决预设（GitHub → 云端 → 内置），请稍等...", true);
     const jsonSuccess = await this.fetchAndSaveJson();
     
     if (!jsonSuccess) {
-      return e.reply("更新失败啦，请查看后台控制台日志。🥺", true);
+      return e.reply("更新失败啦，所有源均不可用，请查看后台控制台日志。🥺", true);
     }
     await e.reply(`✅ 魔法书更新成功！\n已加载 ${this.presetGroup.length} 条神奇咒语。✨`, true);
   }
