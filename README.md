@@ -92,6 +92,6 @@ const IMAGE_MODEL_NAME = "gpt-image-2";
 
 使用 gpt-image-2 最优选中转站：**https://newapi.qianye.host/**
 
-单次会话只需 **0.024 RMB** 一次，欢迎注册体验~
+单次会话只需 **0.084 RMB** 一次，欢迎注册体验~
 
 私信充值 0.6:1
